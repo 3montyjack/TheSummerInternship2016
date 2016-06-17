@@ -14,9 +14,9 @@ var br = require ("binary-reader");
 var churro = require ("cheerio");
 var util = require ("util");
 var Q = require("q");
-var $dataCSV = [[]];
-// configuration =================
+var csv = require("fast-csv");
 
+// configuration =================
 
 app.use(express.static(__dirname + '/public'));                 // set the static files location /public/img will be /img for users
 app.use(bodyParser.urlencoded({'extended':'true'}));            // parse application/x-www-form-urlencoded
@@ -24,37 +24,28 @@ app.use(bodyParser.json());                                     // parse applica
 app.use(bodyParser.json({ type: 'application/vnd.api+json' })); // parse application/vnd.api+json as json
 app.use(methodOverride());
 
-// listen (start app with node server.js) ======================================
-
 //reads text file of the URLs
-var csv = require("fast-csv");
+var $dataCSV = [[]];
 var $j = 0;
 var $html;
-
-var deferred = Q.defer();
-
-csv .fromPath(file)
-    .on("data", function(data){
-        $dataCSV.push(data);
-        //console.log($dataCSV)
-    })
-    .on("end", function(){
-        console.log($dataCSV);
-        console.log("done");
-    });
+var $divs;
 
 console.log($dataCSV);
-request.get("http://pushup.com", function(err, res, body){
-    //console.log(body);
-    $html = churro.load(body);
-    ($html("h1").first().text());
-    ($html("title").text());
-    try {
-        ($html('meta[property="og:description"]').attr('content'));
-    } catch(err) {
-        console.log("website: " + err.message)
+
+getCSVInfo().then(function(data){
+    for (var i = 0; i < data; i++) {
+        request.get(data[i][1], function (err, res, body) {
+            //console.log(body);
+            $html = churro.load(body);
+            $divs = $html("h1").first().text() + $html("title").text();
+            try {
+                $divs += $html('meta[property="og:description"]').attr('content');
+            } catch (err) {
+                console.log("website: " + err.message)
+            }
+        });
     }
-});
+})
 
 function getCSVInfo() {
     
