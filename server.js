@@ -85,7 +85,7 @@ function getHTTPItems(website_data, category_data) {
         if (!website_data[i][2].match(/http/i)) {
             $url = "http://" + data[i][2];
         }
-        else if(true) {
+        else if(website_data[i][2].match(/http:/)) {
             //do check for 'http:website' regex.
         }else {
                 $url = website_data[i][2]
