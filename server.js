@@ -17,12 +17,13 @@ var websites = "./Text Files/Testing CSV - members_export_de65acef1b.csv";
 //TODO Finish the inputs
 var termsLink = "./Text Files/catregories.csv";
 var counter = 0;
+var categoryList=[];
 
 
 //console.log(dataCSV);
 
 function getCSVInfo(file) {
-
+//debugger
     var deferred = Q.defer();
     var tempData= [];
     csv .fromPath(file)
@@ -41,7 +42,9 @@ function getCSVInfo(file) {
     return deferred.promise;
 }
 
-function setCategory(div, categories, data, i) {
+
+function setCategory(div, categories, data, i){
+    debugger
     for( term in categories ){
         for (word in term) {
             var regEx = new RegExp(word, "i")
@@ -49,7 +52,7 @@ function setCategory(div, categories, data, i) {
                 try {
                     data[i][4] = term;
                 } catch (err) {
-                    debugger;
+                    //debugger;
                 }
                 counter++
                 if (counter==data.length-1) {
@@ -57,7 +60,7 @@ function setCategory(div, categories, data, i) {
                 } else {
                     console.log("Updating!" + counter + ":" + i);
                 }
-                return data;
+                return data[i][4];
 
             }
         }
@@ -67,14 +70,18 @@ function setCategory(div, categories, data, i) {
         console.log("completed");
     } else {
         console.log("Updating!" + counter + ":" + i)
+
     }
     return data;
 }
 
 function getCsvData(terms) {
-
+    debugger
+    var deffered=Q.deffer();
+    var tempData=[]
     getCSVInfo(websites).then(function (data) {
         //console.log(data);
+
         for (var i = 1; i < data.length-1; i++) {
             var $url;
 
@@ -98,7 +105,7 @@ function getCsvData(terms) {
                         //console.log($url);
                         //console.log(err);
                         //if ()
-                        //debugger;
+                        debugger;
                         counter++
                     }
 
@@ -119,20 +126,22 @@ function getCsvData(terms) {
                             divs += html('meta[property="og:description"]').attr('content');
                         else
                             console.log("Website: " + data[i][1] + " did not hae a meta discription for fb.")
-                        data = setCategory(divs, terms, data, i)
+                        categoryList[i] = setCategory(divs, terms, data, i);
                         //debugger;
                     }
                     //console.log(divs);
                     //debugger;
                 });
             })($url, i);
+            console.log(testingData)
             //debugger;
 
         }
         //console.log(data);
-
+        deffered.resolve(categoryList);
     });
-
+    debugger;
+    return deffered.promise;
 }
 
 
@@ -142,7 +151,7 @@ getCSVInfo(termsLink).then(function(data) {
     for (var i = 0; i<data.length; i++){
         var category = data[i][0];
         var subcategory = data[i][1].replace("'", "").trim().split(", ");
-        debugger;
+        //debugger;
         terms[category] = subcategory;
         //terms[i].push(data[i][1].replace("'", "").trim().split(", "));
         //console.log(data[i][1].replace("'", "").trim().split(", "));
@@ -150,10 +159,13 @@ getCSVInfo(termsLink).then(function(data) {
         //console.log(subcategory);
         
         
-        console.log(subcategory);
+        //console.log(subcategory);
     }
+    //getCsvData(terms)
     //debugger;
-    console.log(terms);
-    getCsvData(terms);
+    //console.log(terms);
+    getCsvData(terms).then(function(data) {
+
+    });
 
 });
