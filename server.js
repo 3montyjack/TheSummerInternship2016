@@ -5,8 +5,8 @@
 
 // set up ========================
 var request = require('request');
-var churro = require ("cheerio");
-var util = require ("util");
+var churro = require("cheerio");
+var util = require("util");
 var Q = require("q");
 var csv = require("fast-csv");
 
@@ -17,7 +17,7 @@ var websites = "./Text Files/Testing CSV - members_export_de65acef1b.csv";
 //TODO Finish the inputs
 var termsLink = "./Text Files/catregories.csv";
 var counter = 0;
-var categoryList=[];
+var categoryList = [];
 
 
 //console.log(dataCSV);
@@ -25,17 +25,17 @@ var categoryList=[];
 function getCSVInfo(file) {
 //debugger
     var deferred = Q.defer();
-    var tempData= [];
-    csv .fromPath(file)
-        .on("data", function(data){
+    var tempData = [];
+    csv.fromPath(file)
+        .on("data", function (data) {
             tempData.push(data);
             //deferred.resolve(tempData);
 
         })
-        .on("end", function(){
+        .on("end", function () {
             deferred.resolve(tempData);
             console.log("done");
-        }).on("error", function(err){
+        }).on("error", function (err) {
         deferred.reject(err);
     });
 
@@ -43,10 +43,9 @@ function getCSVInfo(file) {
 }
 
 
-function setCategory(div, categories, data, i){
-    debugger
-    for( term in categories ){
-        for (word in term) {
+function setCategory(div, categories, data, i) {
+    for (var term in categories) {
+        for (var word in term) {
             var regEx = new RegExp(word, "i")
             if (div.match(regEx)) {
                 try {
@@ -54,8 +53,8 @@ function setCategory(div, categories, data, i){
                 } catch (err) {
                     //debugger;
                 }
-                counter++
-                if (counter==data.length-1) {
+                counter++;
+                if (counter == data.length - 1) {
                     console.log("completed");
                 } else {
                     console.log("Updating!" + counter + ":" + i);
@@ -65,19 +64,18 @@ function setCategory(div, categories, data, i){
             }
         }
     }
-    counter++
-    if (counter==data.length-1) {
+    counter++;
+    if (counter == data.length - 1) {
         console.log("completed");
     } else {
         console.log("Updating!" + counter + ":" + i)
 
     }
-    return data;
+    return data[i][4];
 }
 
 function getCsvData(terms) {
-    debugger
-    var deferred=Q.defer();
+    var deferred = Q.defer();
     //var tempData=[];
     deferred.resolve(categoryList);
 
@@ -136,6 +134,7 @@ function getHTTPItems(terms) {
                         else
                             console.log("Website: " + data[i][1] + " did not hae a meta discription for fb.")
                         categoryList[i] = setCategory(divs, terms, data, i);
+                        console.log("Category = " + JSON.stringify(categoryList[i]));
                         //debugger;
                     }
                     //console.log(divs);
@@ -149,18 +148,18 @@ function getHTTPItems(terms) {
         //console.log(data);
         debugger;
         $processedData = data;
-        defered.resolve($processedData);
+        defered.resolve(categoryList);
 
     });
-    console.log("data: " + JSON.stringify($processedData));
+    console.log("data: " + JSON.stringify(categoryList));
     return defered.promise;
 
 }
 
-getCSVInfo(termsLink).then(function(data) {
+getCSVInfo(termsLink).then(function (data) {
     //console.log(data);
     var terms = {};
-    for (var i = 0; i<data.length; i++){
+    for (var i = 0; i < data.length; i++) {
         var category = data[i][0];
         var subcategory = data[i][1].replace("'", "").trim().split(", ");
         //debugger;
@@ -169,23 +168,22 @@ getCSVInfo(termsLink).then(function(data) {
         //console.log(data[i][1].replace("'", "").trim().split(", "));
         //console.log(category);
         //console.log(subcategory);
-        
-        
+
+
         //console.log(subcategory);
     }
     //getCsvData(terms)
     //debugger;
     //console.log(terms);
-    getHTTPItems(terms).then(function(terms) {
+    getHTTPItems(terms).then(function (terms) {
         console.log(terms);
-        getCsvData(terms).then(function(data) {
+        getCsvData(terms).then(function (data) {
             debugger;
-            console.log("sorta Working" );
+            console.log("sorta Working");
         });
-    }).catch(function() {
+    }).catch(function () {
         console.log("error")
     });
-
 
 
 });
