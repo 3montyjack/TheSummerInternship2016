@@ -77,12 +77,21 @@ function setCategory(div, categories, data, i){
 
 function getCsvData(terms) {
     debugger
-    var deffered=Q.deffer();
-    var tempData=[]
+    var deferred=Q.defer();
+    //var tempData=[];
+    deferred.resolve(categoryList);
+
+    debugger;
+    return deferred.promise;
+}
+
+function getHTTPItems(terms) {
+    var defered = Q.defer();
+    var $processedData;
     getCSVInfo(websites).then(function (data) {
         //console.log(data);
 
-        for (var i = 1; i < data.length-1; i++) {
+        for (var i = 1; i < data.length - 1; i++) {
             var $url;
 
 
@@ -133,17 +142,20 @@ function getCsvData(terms) {
                     //debugger;
                 });
             })($url, i);
-            console.log(testingData)
+            //console.log(testingData);
             //debugger;
 
         }
         //console.log(data);
-        deffered.resolve(categoryList);
-    });
-    debugger;
-    return deffered.promise;
-}
+        debugger;
+        $processedData = data;
+        defered.resolve($processedData);
 
+    });
+    console.log("data: " + JSON.stringify($processedData));
+    return defered.promise;
+
+}
 
 getCSVInfo(termsLink).then(function(data) {
     //console.log(data);
@@ -164,8 +176,16 @@ getCSVInfo(termsLink).then(function(data) {
     //getCsvData(terms)
     //debugger;
     //console.log(terms);
-    getCsvData(terms).then(function(data) {
-
+    getHTTPItems(terms).then(function(terms) {
+        console.log(terms);
+        getCsvData(terms).then(function(data) {
+            debugger;
+            console.log("sorta Working" );
+        });
+    }).catch(function() {
+        console.log("error")
     });
+
+
 
 });
