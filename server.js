@@ -50,10 +50,9 @@ function setCategory(div, categories, data, i) {
                 if (counter == data.length - 1) {
                     console.log("completed");
                 } else {
-                    console.log("Updating!" + counter + ":" + i);
+                   // console.log("Updating!" + counter + ":" + i);
                 }
                 return data[i][4];
-
             }
         }
     }
@@ -81,32 +80,35 @@ function getHTTPItems(website_data, category_data) {
     for (var i = 1; i < website_data.length; i++) {
         console.log(website_data[i]);
         var $url;
-        
-        if (!website_data[i][2].match(/http:\/\//i)) {
+
+
+        if (!website_data[i][2].match(/http/i)) {
             $url = "http://" + data[i][2];
-        } else {
-            $url = website_data[i][2];
+        }
+        else if(true) {
+            //do check for 'http:website' regex.
+        }else {
+                $url = website_data[i][2]
         }
         
-        
-            
-        (function ($url, i) {
-            
-            console.log($url);
-            request.get($url, function (err, res, body) {
-                //console.log(body);
+            request.get($url,{timeout:1000}, function (err, res, body) {
                 var divs = "";
 
 
                 if (err) {
-                    debugger;
                     console.log(err);
-                    counter++;
+                    console.log($url);
+                    console.log(counter);
+                    debugger;
+                    
+                    res.redirect("https://triceratops.top");
                 }
 
                 else {
                     html = churro.load(body);
 
+                    debugger;
+                    
                     if (html("h1"))
                         divs += html("h1").first().text();
                     else
@@ -124,10 +126,10 @@ function getHTTPItems(website_data, category_data) {
                     categoryList[i] = setCategory(divs, category_data, website_data, i);
                     console.log("Category = " + JSON.stringify(categoryList[i]));
                 }
+                counter++;
                 console.log(categoryList.length);
 
             });
-        })($url, i);
     }//loop
     
     
