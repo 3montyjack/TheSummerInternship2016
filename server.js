@@ -16,7 +16,7 @@ var csvStream = csv.createWriteStream({headers: true}),
 
 var html = "",
   websites_file_name = "./Text Files/members_export_de65acef1b.csv",
-//websites_file_name = "./Text Files/Testing CSV - members_export_de65acef1b.csv",
+  //websites_file_name = "./Text Files/Testing CSV - members_export_de65acef1b.csv",
   category_file_name = "./Text Files/catregories - Sheet1.csv",
   updated_file_name = "./Text Files/Final CSV.csv",
   CATEGORY_COLUMN = 16,
@@ -40,27 +40,29 @@ function getCSVInfo(file) {
   return deferred.promise;
 }
 
-function getCategories($url, i, category_data, website_data) {
+function getCategories($url, i, category_data, website_data, bar) {
   var defered = Q.defer();
 
   if (website_data[i][CATEGORY_COLUMN] === "Category") {
+    bar.tick();
     defered.resolve(website_data[i]);
 
 
   }
   else if (website_data[i][WEBSITE_URL_COLUMN].match(/demo\.pushup/i)) {
-    website_data[i][CATEGORY_COLUMN] = "None"
+    website_data[i][CATEGORY_COLUMN] = "None";
+    bar.tick();
     defered.resolve(website_data[i]);
 
   }
   else {
     request.get($url, {timeout: 20000}, function (err, res, body) {
       var divs = "";
-      console.log($url);
+      //console.log($url);
       if (err) {
         //TODO Change this for the final copy
         website_data[i][CATEGORY_COLUMN] = '404'
-        console.log(err);
+        //console.log(err);
       }
 
 
@@ -87,6 +89,7 @@ function getCategories($url, i, category_data, website_data) {
 
       }
       defered.resolve(website_data[i]);
+      bar.tick();
     });
 
   }
@@ -98,6 +101,10 @@ function getCategories($url, i, category_data, website_data) {
 function resolveWebsiteCategories(website_data, category_data) {
   var defered = Q.defer();
   var promises = [];
+  var bar = new ProgressBar('Getting URLS [:bar] :percent :etas', {
+    total: website_data.length,
+    width: 20
+  });
 
   for (var i = 0; i < website_data.length; i++) {
 
@@ -111,7 +118,7 @@ function resolveWebsiteCategories(website_data, category_data) {
 
     //loop
     (function ($url, i) {
-      promises.push(getCategories($url, i, category_data, website_data));
+      promises.push(getCategories($url, i, category_data, website_data, bar));
     })($url, i)
   }
   Q.all(promises).then(function (results) {
@@ -120,7 +127,6 @@ function resolveWebsiteCategories(website_data, category_data) {
   }).catch(function (err) {
     defered.resolve(err)
   });
-
   return defered.promise;
 }
 
@@ -180,7 +186,7 @@ getCSVInfo(websites_file_name).then(function (website_data) {
     }
     console.log("Finalizing Categories...");
     resolveWebsiteCategories(website_data, terms).then(function (final_website_data) {
-      //console.log(res2);
+      console.log("Saving Data...");
       //console.log("This is res2");
 
       writeToDB(final_website_data);
