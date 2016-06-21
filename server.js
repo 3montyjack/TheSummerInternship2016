@@ -9,16 +9,16 @@ const request = require('request'),
   util = require("util"),
   Q = require("q"),
   csv = require("fast-csv"),
-  fs = require("fs"),
-  ProgressBar = require('progress'),
-  csvWriter = require('csv-write-stream');
+  fs = require("fs");
+var  csvStream = csv.createWriteStream({headers: true}),
+  ProgressBar = require('progress');
 
 
 
 
 var html = "",
-  websites_file_name = "./Text Files/members_export_de65acef1b.csv",
-  //websites_file_name = "./Text Files/Testing CSV - members_export_de65acef1b.csv",
+  //websites_file_name = "./Text Files/members_export_de65acef1b.csv",
+  websites_file_name = "./Text Files/Testing CSV - members_export_de65acef1b.csv",
   category_file_name = "./Text Files/catregories - Sheet1.csv",
   updated_file_name = "./Text Files/Final CSV.csv",
   CATEGORY_COLUMN = 16,
@@ -47,11 +47,13 @@ function getCategories($url, i, category_data, website_data) {
   //console.log(i + "hello I am I");
   request.get($url, {timeout: 20000}, function (err, res, body) {
     var divs = "";
+    console.log($url);
     if (err) {
       //console.log(err);
       //console.log($url);
       //TODO Change this for the final copy
       website_data[i][CATEGORY_COLUMN] = '404'
+      console.log(err);
     }
       else if (i === 0) {
       website_data[i][CATEGORY_COLUMN] = "Category"
@@ -93,13 +95,11 @@ function resolveWebsiteCategories(website_data, category_data) {
     //console.log(website_data[i]);
     var $url;
 
-    if (!website_data[i][2].match(/http/i)) {
-      $url = "http://" + website_data[i][2];
-    } else if (website_data[i][WEBSITE_URL_COLUMN].match(/http:/)) {
-      $url = website_data[i][WEBSITE_URL_COLUMN]
-    } else {
-      $url = website_data[i][WEBSITE_URL_COLUMN];
+    if (website_data[i][WEBSITE_URL_COLUMN]!= "") {
+      $url = website_data[i][WEBSITE_URL_COLUMN].replace(/^https?[^a-zA-Z0-9]+/i, '');
     }
+    $url = "http://" + $url;
+
     //loop
     (function($url, i) {
       promises.push(getCategories($url, i, category_data, website_data));
@@ -139,14 +139,23 @@ function determineCategory(div, categories) {
 
 function writeToDB(final_website_data) {
 
-  var writer = csvWriter();
-  writer.pipe(fs.createWriteStream(updated_file_name));
-  console.log("Staging Changes...");
+  var writableStream = fs.createWriteStream(updated_file_name);
+
+  writableStream.on("finish", function(){
+    console.log("DONE!");
+  });
+
+
+  csvStream.pipe(writableStream);
+  console.log("Staging Changes..." +final_website_data.length);
   for (var i = 0; i < final_website_data.length; i++) {
-      writer.write(final_website_data[i],{headers:true});
+
+      csvStream.write(final_website_data[i]);
+      console.log(final_website_data[i]);
   }
-  writer.end();
   console.log("writing to DB...");
+
+  csvStream.end();
 }
 
 
