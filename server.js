@@ -4,176 +4,174 @@
 // server.js
 
 // set up ========================
-var request = require('request');
-var churro = require("cheerio");
-var util = require("util");
-var Q = require("q");
-var csv = require("fast-csv");
+const request = require('request'),
+  churro = require("cheerio"),
+  util = require("util"),
+  Q = require("q"),
+  csv = require("fast-csv"),
+  fs = require("fs"),
+  ProgressBar = require('progress'),
+  csvWriter = require('csv-write-stream');
 
-//reads text file of the URLs
-var html;
-var websites = "./Text Files/Pushup Communities - members_export_de65acef1b.csv";
-//TODO Finish the inputs
-var termsLink = "./Text Files/catregories.csv";
-var counter = 0;
-var categoryList = [];
+
+
+
+var html = "",
+  websites_file_name = "./Text Files/members_export_de65acef1b.csv",
+  //websites_file_name = "./Text Files/Testing CSV - members_export_de65acef1b.csv",
+  category_file_name = "./Text Files/catregories - Sheet1.csv",
+  updated_file_name = "./Text Files/Final CSV.csv",
+  CATEGORY_COLUMN = 16,
+  WEBSITE_URL_COLUMN = 4;
 
 
 function getCSVInfo(file) {
-    var deferred = Q.defer();
-    var tempData = [];
-    csv.fromPath(file)
-        .on("data", function (data) {
-            tempData.push(data);
-        })
-        .on("end", function () {
-            deferred.resolve(tempData);
-        }).on("error", function (err) {
-        deferred.reject(err);
+  var deferred = Q.defer();
+  var tempData = [];
+  csv.fromPath(file)
+    .on("data", function (data) {
+      tempData.push(data);
+    })
+    .on("end", function () {
+      deferred.resolve(tempData);
+    })
+    .on("error", function (err) {
+      deferred.reject(err);
     });
 
-    return deferred.promise;
+  return deferred.promise;
 }
 
-
-function setCategory(div, categories, data, i) {
-    for (var term in categories) {
-        for (var word in term) {
-            var regEx = new RegExp(word, "i")
-            if (div.match(regEx)) {
-                try {
-                    data[i][4] = term;
-                } catch (err) {
-                    //debugger;
-                }
-                counter++;
-                if (counter == data.length - 1) {
-                    console.log("completed");
-                } else {
-                   // console.log("Updating!" + counter + ":" + i);
-                }
-                return data[i][4];
-            }
-        }
+function getCategories($url, i, category_data, website_data) {
+  var defered = Q.defer();
+  //console.log(i + "hello I am I");
+  request.get($url, {timeout: 20000}, function (err, res, body) {
+    var divs = "";
+    if (err) {
+      //console.log(err);
+      //console.log($url);
+      //TODO Change this for the final copy
+      website_data[i][CATEGORY_COLUMN] = '404'
     }
-    counter++;
-    if (counter == data.length - 1) {
-        console.log("completed");
+      else if (i === 0) {
+      website_data[i][CATEGORY_COLUMN] = "Category"
+    }
+
+    else {
+      html = churro.load(body);
+      
+
+      if (html("h1"))
+        divs += html("h1").first().text();
+      else
+        console.log("Website: " + website_data[i][1] + " did not hae a h1 elemnt.");
+
+      if (html("title"))
+        divs += html("title").text();
+      else
+        console.log("Website: " + website_data[i][1] + " did not hae a title element.");
+
+      if (html('meta[property="og:description"]'))
+        divs += html('meta[property="og:description"]').attr('content');
+
+      else
+        console.log("Website: " + website_data[i][WEBSITE_URL_COLUMN] + " did not hae a meta discription for fb.");
+      website_data[i][CATEGORY_COLUMN] = determineCategory(divs, category_data);
+
+    }
+    defered.resolve(website_data[i]);
+  });
+  return defered.promise
+}
+
+function resolveWebsiteCategories(website_data, category_data) {
+  var defered = Q.defer();
+  var promises = [];
+
+  for (var i = 0; i < website_data.length; i++) {
+
+    //console.log(website_data[i]);
+    var $url;
+
+    if (!website_data[i][2].match(/http/i)) {
+      $url = "http://" + website_data[i][2];
+    } else if (website_data[i][WEBSITE_URL_COLUMN].match(/http:/)) {
+      $url = website_data[i][WEBSITE_URL_COLUMN]
     } else {
-        console.log("Updating!" + counter + ":" + i)
+      $url = website_data[i][WEBSITE_URL_COLUMN];
+    }
+    //loop
+    (function($url, i) {
+      promises.push(getCategories($url, i, category_data, website_data));
+    })($url, i)
+  }
+  Q.all(promises).then(function (results) {
+    //console.log(results);
+    defered.resolve(results);
+  }).catch(function (err) {
+    defered.resolve(err)
+  });
+
+  return defered.promise;
+}
+
+/**
+ * determineCategory finds a category based on the div and the categories that are passed in
+ * @param {String} div the html string of elements.
+ * @param {Array} categories
+ * @param data
+ * @param i
+ * @returns {*}
+ */
+function determineCategory(div, categories) {
+  for (var term in categories) {
+    for (var i = 0; i < categories[term].length; i++) {
+      var regEx = new RegExp(categories[term][i], "i")
+      if (div.match(regEx)) {
+        return term;
+
+      }
+    }
+  }
+  //TODO Make this look better as well for the final copy
+  return "Didnt Catorgize";
+}
+
+function writeToDB(final_website_data) {
+
+  var writer = csvWriter();
+  writer.pipe(fs.createWriteStream(updated_file_name));
+  console.log("Staging Changes...");
+  for (var i = 0; i < final_website_data.length; i++) {
+      writer.write(final_website_data[i],{headers:true});
+  }
+  writer.end();
+  console.log("writing to DB...");
+}
+
+
+getCSVInfo(websites_file_name).then(function (website_data) {
+  console.log("Getting Websites...")
+  getCSVInfo(category_file_name).then(function (category_terms) {
+    console.log("Getting Categories...");
+    var terms = {};
+    for (var i = 0; i < category_terms.length; i++) {
+      var category = category_terms[i][0];
+      var subcategory = category_terms[i][1].replace("'", "").trim().split(", ");
+      terms[category] = subcategory;
 
     }
-    return data[i][4];
-}
+    resolveWebsiteCategories(website_data, terms).then(function (final_website_data) {
+      //console.log(res2);
+      //console.log("This is res2");
 
-function writeToDB(result) {
-    var deferred = Q.defer();
-    console.log(JSON.stringify(result));
-    deferred.resolve();
-    return deferred.promise;
-}
-
-function getHTTPItems(website_data, category_data) {
-    var defered = Q.defer();
-    var categoryList = [];
-
-    for (var i = 1; i < website_data.length; i++) {
-        console.log(website_data[i]);
-        var $url;
+      writeToDB(final_website_data);
 
 
-        if (!website_data[i][2].match(/http/i)) {
-            $url = "http://" + data[i][2];
-        }
-        else if(website_data[i][2].match(/http:/)) {
-            //do check for 'http:website' regex.
-        }else {
-                $url = website_data[i][2]
-        }
-        
-            request.get($url,{timeout:1000}, function (err, res, body) {
-                var divs = "";
 
 
-                if (err) {
-                    console.log(err);
-                    console.log($url);
-                    console.log(counter);
-                    debugger;
-                    
-                    res.redirect("https://triceratops.top");
-                }
 
-                else {
-                    html = churro.load(body);
 
-                    debugger;
-                    
-                    if (html("h1"))
-                        divs += html("h1").first().text();
-                    else
-                        console.log("Website: " + website_data[i][1] + " did not hae a h1 elemnt.");
-
-                    if (html("title"))
-                        divs += html("title").text();
-                    else
-                        console.log("Website: " + website_data[i][1] + " did not hae a title element.");
-
-                    if (html('meta[property="og:description"]'))
-                        divs += html('meta[property="og:description"]').attr('content');
-                    else
-                        console.log("Website: " + website_data[i][1] + " did not hae a meta discription for fb.");
-                    categoryList[i] = setCategory(divs, category_data, website_data, i);
-                    console.log("Category = " + JSON.stringify(categoryList[i]));
-                }
-                counter++;
-                console.log(categoryList.length);
-
-            });
-    }//loop
-    
-    
-    defered.resolve(categoryList);
-    
-    //console.log("data: " + JSON.stringify(categoryList));
-    return defered.promise;
-
-}
-
-// getCSVInfo(termsLink).then(function (data) {
-//     //console.log(data);
-//     var terms = {};
-//     for (var i = 0; i < data.length; i++) {
-//         var category = data[i][0];
-//         var subcategory = data[i][1].replace("'", "").trim().split(", ");
-//         //debugger;
-//         terms[category] = subcategory;
-//         //terms[i].push(data[i][1].replace("'", "").trim().split(", "));
-//         //console.log(data[i][1].replace("'", "").trim().split(", "));
-//         //console.log(category);
-//         //console.log(subcategory);
-//
-//
-//         //console.log(subcategory);
-//     }
-//     //getCsvData(terms)
-//     //debugger;
-//     //console.log(terms);
-//    
-// });
-
-getCSVInfo(websites).then(function(res1){
-    var $res1 = res1;
-    getCSVInfo(termsLink).then(function(res_terms){
-        getHTTPItems($res1, res_terms).then(function (res2) {
-            console.log(res2);
-            console.log("This is res2");
-            writeToDB(res2).then(function () {
-                console.log("sorta Working with: " + data);
-            });
-        }).catch(function () {
-            console.log("error")
-        });
-    })
+    });
+  })
 });
-
